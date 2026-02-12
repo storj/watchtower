@@ -422,7 +422,7 @@ func SetDefaults() {
 	viper.SetDefault("DOCKER_HOST", "unix:///var/run/docker.sock")
 	viper.SetDefault("DOCKER_API_VERSION", DockerAPIMinVersion)
 	viper.SetDefault("WATCHTOWER_POLL_INTERVAL", defaultInterval)
-	viper.SetDefault("WATCHTOWER_TIMEOUT", time.Second*10)
+	viper.SetDefault("WATCHTOWER_TIMEOUT", time.Minute*5)
 	viper.SetDefault("WATCHTOWER_NOTIFICATIONS", []string{})
 	viper.SetDefault("WATCHTOWER_NOTIFICATIONS_LEVEL", "info")
 	viper.SetDefault("WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT", 25)
