@@ -35,7 +35,7 @@
     ],
     "OnBuild": null,
     "Labels": {
-      "com.centurylinklabs.watchtower": "true"
+      "io.storj.watchtower": "true"
     }
   },
   "DockerVersion": "18.09.1",
@@ -62,7 +62,7 @@
     ],
     "OnBuild": null,
     "Labels": {
-      "com.centurylinklabs.watchtower": "true"
+      "io.storj.watchtower": "true"
     }
   },
   "Architecture": "amd64",

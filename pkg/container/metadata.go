@@ -3,7 +3,7 @@ package container
 import "strconv"
 
 const (
-	watchtowerLabel        = "com.centurylinklabs.watchtower"
+	watchtowerLabel        = "io.storj.watchtower"
 	signalLabel            = "com.centurylinklabs.watchtower.stop-signal"
 	enableLabel            = "com.centurylinklabs.watchtower.enable"
 	monitorOnlyLabel       = "com.centurylinklabs.watchtower.monitor-only"

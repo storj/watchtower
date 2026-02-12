@@ -160,7 +160,7 @@ var _ = Describe("the container", func() {
 		BeforeEach(func() {
 			c = MockContainer(WithLabels(map[string]string{
 				"com.centurylinklabs.watchtower.enable": "true",
-				"com.centurylinklabs.watchtower":        "true",
+				"io.storj.watchtower":        "true",
 			}))
 		})
 		It("should return its name on calls to .Name()", func() {
@@ -207,7 +207,7 @@ var _ = Describe("the container", func() {
 				Expect(isWatchtower).To(BeTrue())
 			})
 			It("should return false if the label is present but set to false", func() {
-				c = MockContainer(WithLabels(map[string]string{"com.centurylinklabs.watchtower": "false"}))
+				c = MockContainer(WithLabels(map[string]string{"io.storj.watchtower": "false"}))
 				isWatchtower := c.IsWatchtower()
 				Expect(isWatchtower).To(BeFalse())
 			})

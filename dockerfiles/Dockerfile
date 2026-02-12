@@ -5,7 +5,7 @@ RUN apk add --no-cache \
     tzdata
 
 FROM scratch
-LABEL "com.centurylinklabs.watchtower"="true"
+LABEL "io.storj.watchtower"="true"
 
 COPY --from=alpine \
     /etc/ssl/certs/ca-certificates.crt \

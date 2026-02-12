@@ -10,7 +10,7 @@
     "Created": 1554925882,
     "Ports": [],
     "Labels": {
-      "com.centurylinklabs.watchtower": "true"
+      "io.storj.watchtower": "true"
     },
     "State": "exited",
     "Status": "Exited (1) 6 days ago",
@@ -58,7 +58,7 @@
     "Created": 1554925882,
     "Ports": [],
     "Labels": {
-      "com.centurylinklabs.watchtower": "true"
+      "io.storj.watchtower": "true"
     },
     "State": "running",
     "Status": "Up 3 days",

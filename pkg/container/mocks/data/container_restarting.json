@@ -163,7 +163,7 @@
     ],
     "OnBuild": null,
     "Labels": {
-      "com.centurylinklabs.watchtower": "true"
+      "io.storj.watchtower": "true"
     }
   },
   "NetworkSettings": {

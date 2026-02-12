@@ -13,7 +13,7 @@ RUN apk add --no-cache \
     git \
     tzdata
 
-RUN git clone --branch "${WATCHTOWER_VERSION}" https://github.com/containrrr/watchtower.git
+RUN git clone --branch "${WATCHTOWER_VERSION}" https://github.com/storj/watchtower.git
 
 RUN \
   cd watchtower && \
@@ -28,7 +28,7 @@ RUN \
 
 FROM scratch
 
-LABEL "com.centurylinklabs.watchtower"="true"
+LABEL "io.storj.watchtower"="true"
 
 # copy files from other container
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
