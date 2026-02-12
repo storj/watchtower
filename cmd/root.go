@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,6 +28,9 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+// PollInterval is the hard-coded interval for checking for new images.
+const PollInterval int = 21600 // 6 hours
 
 var (
 	client            container.Client
@@ -85,7 +89,9 @@ func PreRun(cmd *cobra.Command, _ []string) {
 		log.Fatalf("Failed to initialize logging: %s", err.Error())
 	}
 
-	scheduleSpec, _ = f.GetString("schedule")
+	// Schedule a random poll interval between [PollInterval, 2*PollInterval)
+	interval := PollInterval + rand.Intn(PollInterval)
+	scheduleSpec = "@every " + strconv.Itoa(interval) + "s"
 
 	flags.GetSecretsFromFiles(cmd)
 	cleanup, noRestart, monitorOnly, timeout = flags.ReadFlags(cmd)
