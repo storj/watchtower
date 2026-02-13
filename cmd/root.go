@@ -89,9 +89,14 @@ func PreRun(cmd *cobra.Command, _ []string) {
 		log.Fatalf("Failed to initialize logging: %s", err.Error())
 	}
 
-	// Schedule a random poll interval between [PollInterval, 2*PollInterval)
-	interval := PollInterval + rand.Intn(PollInterval)
-	scheduleSpec = "@every " + strconv.Itoa(interval) + "s"
+	// Use user-provided interval/schedule if explicitly set, otherwise
+	// schedule a random poll interval between [PollInterval, 2*PollInterval)
+	if f.Changed("interval") || f.Changed("schedule") {
+		scheduleSpec, _ = f.GetString("schedule")
+	} else {
+		interval := PollInterval + rand.Intn(PollInterval)
+		scheduleSpec = "@every " + strconv.Itoa(interval) + "s"
+	}
 
 	flags.GetSecretsFromFiles(cmd)
 	cleanup, noRestart, monitorOnly, timeout = flags.ReadFlags(cmd)

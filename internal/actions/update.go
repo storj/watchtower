@@ -152,7 +152,7 @@ func stopStaleContainer(container types.Container, client container.Client, para
 		}
 	}
 
-	if params.LifecycleHooks {
+	if params.LifecycleHooks && !container.IsLinkedToRestarting() {
 		skipUpdate, err := lifecycle.ExecutePreUpdateCommand(client, container)
 		if err != nil {
 			log.Error(err)
@@ -224,7 +224,7 @@ func restartStaleContainer(container types.Container, client container.Client, p
 		if newContainerID, err := client.StartContainer(container); err != nil {
 			log.Error(err)
 			return err
-		} else if container.ToRestart() && params.LifecycleHooks {
+		} else if container.ToRestart() && !container.IsLinkedToRestarting() && params.LifecycleHooks {
 			lifecycle.ExecutePostUpdateCommand(client, newContainerID)
 		}
 	}

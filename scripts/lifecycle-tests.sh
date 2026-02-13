@@ -71,7 +71,7 @@ function builddocker {
 	TIMESTAMP=$(date +%s)
 	echo "Building image $TIMESTAMP"
 	echo "${DOCKERFILE/TIMESTAMP/$TIMESTAMP}" > $TMP_DIR/Dockerfile
-	docker build $TMP_DIR -t $IMAGE >> /dev/null
+	docker build $TMP_DIR -t $IMAGE --load >> /dev/null
 }
 
 # Start watchtower
@@ -189,7 +189,7 @@ fi
 # Build updated image to trigger watchtower update
 builddocker
 
-WAIT_AMOUNT=$(($WATCHTOWER_INTERVAL * 3))
+WAIT_AMOUNT=$(($WATCHTOWER_INTERVAL * 7))
 echo "Wait for $WAIT_AMOUNT seconds"
 sleep $WAIT_AMOUNT
 
