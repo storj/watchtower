@@ -4,12 +4,12 @@ With watchtower you can update the running version of your containerized app sim
 
 For example, let's say you were running watchtower along with an instance of _centurylink/wetty-cli_ image:
 
-```bash
+```text
 $ docker ps
 CONTAINER ID   IMAGE                   STATUS          PORTS                    NAMES
 967848166a45   centurylink/wetty-cli   Up 10 minutes   0.0.0.0:8080->3000/tcp   wetty
 6cc4d2a9d1a5   containrrr/watchtower   Up 15 minutes                            watchtower
 ```
 
-Every few minutes watchtower will pull the latest _centurylink/wetty-cli_ image and compare it to the one that was used to run the "wetty" container. If it sees that the image has changed it will stop/remove the "wetty" container and then restart it using the new image and the same `docker run` options that were used to start the container initially (in this case, that would include the `-p 8080:3000` port mapping).
+Every day watchtower will pull the latest _centurylink/wetty-cli_ image and compare it to the one that was used to run the "wetty" container. If it sees that the image has changed it will stop/remove the "wetty" container and then restart it using the new image and the same `docker run` options that were used to start the container initially (in this case, that would include the `-p 8080:3000` port mapping).
 

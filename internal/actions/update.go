@@ -1,8 +1,14 @@
 package actions
 
 import (
+	"errors"
+
 	"github.com/containrrr/watchtower/internal/util"
 	"github.com/containrrr/watchtower/pkg/container"
+	"github.com/containrrr/watchtower/pkg/lifecycle"
+	"github.com/containrrr/watchtower/pkg/session"
+	"github.com/containrrr/watchtower/pkg/sorter"
+	"github.com/containrrr/watchtower/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -10,74 +16,199 @@ import (
 // used to start those containers have been updated. If a change is detected in
 // any of the images, the associated containers are stopped and restarted with
 // the new image.
-func Update(client container.Client, params UpdateParams) error {
+func Update(client container.Client, params types.UpdateParams) (types.Report, error) {
 	log.Debug("Checking containers for updated images")
+	progress := &session.Progress{}
+	staleCount := 0
+
+	if params.LifecycleHooks {
+		lifecycle.ExecutePreChecks(client, params)
+	}
 
 	containers, err := client.ListContainers(params.Filter)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for i, container := range containers {
-		stale, err := client.IsContainerStale(container)
-		if err != nil {
-			log.Infof("Unable to update container %s. Proceeding to next.", containers[i].Name())
-			log.Debug(err)
-			stale = false
+	staleCheckFailed := 0
+
+	for i, targetContainer := range containers {
+		stale, newestImage, err := client.IsContainerStale(targetContainer, params)
+		shouldUpdate := stale && !params.NoRestart && !targetContainer.IsMonitorOnly(params)
+		if err == nil && shouldUpdate {
+			// Check to make sure we have all the necessary information for recreating the container
+			err = targetContainer.VerifyConfiguration()
+			// If the image information is incomplete and trace logging is enabled, log it for further diagnosis
+			if err != nil && log.IsLevelEnabled(log.TraceLevel) {
+				imageInfo := targetContainer.ImageInfo()
+				log.Tracef("Image info: %#v", imageInfo)
+				log.Tracef("Container info: %#v", targetContainer.ContainerInfo())
+				if imageInfo != nil {
+					log.Tracef("Image config: %#v", imageInfo.Config)
+				}
+			}
 		}
-		containers[i].Stale = stale
+
+		if err != nil {
+			log.Infof("Unable to update container %q: %v. Proceeding to next.", targetContainer.Name(), err)
+			stale = false
+			staleCheckFailed++
+			progress.AddSkipped(targetContainer, err)
+		} else {
+			progress.AddScanned(targetContainer, newestImage)
+		}
+		containers[i].SetStale(stale)
+
+		if stale {
+			staleCount++
+		}
 	}
 
-	containers, err = container.SortByDependencies(containers)
+	containers, err = sorter.SortByDependencies(containers)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	checkDependencies(containers)
+	UpdateImplicitRestart(containers)
 
-	if params.MonitorOnly {
+	var containersToUpdate []types.Container
+	for _, c := range containers {
+		if !c.IsMonitorOnly(params) {
+			containersToUpdate = append(containersToUpdate, c)
+			progress.MarkForUpdate(c.ID())
+		}
+	}
+
+	if params.RollingRestart {
+		progress.UpdateFailed(performRollingRestart(containersToUpdate, client, params))
+	} else {
+		failedStop, stoppedImages := stopContainersInReversedOrder(containersToUpdate, client, params)
+		progress.UpdateFailed(failedStop)
+		failedStart := restartContainersInSortedOrder(containersToUpdate, client, params, stoppedImages)
+		progress.UpdateFailed(failedStart)
+	}
+
+	if params.LifecycleHooks {
+		lifecycle.ExecutePostChecks(client, params)
+	}
+	return progress.Report(), nil
+}
+
+func performRollingRestart(containers []types.Container, client container.Client, params types.UpdateParams) map[types.ContainerID]error {
+	cleanupImageIDs := make(map[types.ImageID]bool, len(containers))
+	failed := make(map[types.ContainerID]error, len(containers))
+
+	for i := len(containers) - 1; i >= 0; i-- {
+		if containers[i].ToRestart() {
+			err := stopStaleContainer(containers[i], client, params)
+			if err != nil {
+				failed[containers[i].ID()] = err
+			} else {
+				if err := restartStaleContainer(containers[i], client, params); err != nil {
+					failed[containers[i].ID()] = err
+				} else if containers[i].IsStale() {
+					// Only add (previously) stale containers' images to cleanup
+					cleanupImageIDs[containers[i].ImageID()] = true
+				}
+			}
+		}
+	}
+
+	if params.Cleanup {
+		cleanupImages(client, cleanupImageIDs)
+	}
+	return failed
+}
+
+func stopContainersInReversedOrder(containers []types.Container, client container.Client, params types.UpdateParams) (failed map[types.ContainerID]error, stopped map[types.ImageID]bool) {
+	failed = make(map[types.ContainerID]error, len(containers))
+	stopped = make(map[types.ImageID]bool, len(containers))
+	for i := len(containers) - 1; i >= 0; i-- {
+		if err := stopStaleContainer(containers[i], client, params); err != nil {
+			failed[containers[i].ID()] = err
+		} else {
+			// NOTE: If a container is restarted due to a dependency this might be empty
+			stopped[containers[i].SafeImageID()] = true
+		}
+
+	}
+	return
+}
+
+func stopStaleContainer(container types.Container, client container.Client, params types.UpdateParams) error {
+	if container.IsWatchtower() {
+		log.Debugf("This is the watchtower container %s", container.Name())
 		return nil
 	}
 
-	stopContainersInReversedOrder(containers, client, params)
-	restartContainersInSortedOrder(containers, client, params)
-
-	return nil
-}
-
-func stopContainersInReversedOrder(containers []container.Container, client container.Client, params UpdateParams) {
-	for i := len(containers) - 1; i >= 0; i-- {
-		stopStaleContainer(containers[i], client, params)
-	}
-}
-
-func stopStaleContainer(container container.Container, client container.Client, params UpdateParams) {
-	if container.IsWatchtower() {
-		log.Debugf("This is the watchtower container %s", container.Name())
-		return
+	if !container.ToRestart() {
+		return nil
 	}
 
-	if !container.Stale {
-		return
+	// Perform an additional check here to prevent us from stopping a linked container we cannot restart
+	if container.IsLinkedToRestarting() {
+		if err := container.VerifyConfiguration(); err != nil {
+			return err
+		}
 	}
 
-	executePreUpdateCommand(client, container)
+	if params.LifecycleHooks && !container.IsLinkedToRestarting() {
+		skipUpdate, err := lifecycle.ExecutePreUpdateCommand(client, container)
+		if err != nil {
+			log.Error(err)
+			log.Info("Skipping container as the pre-update command failed")
+			return err
+		}
+		if skipUpdate {
+			log.Debug("Skipping container as the pre-update command returned exit code 75 (EX_TEMPFAIL)")
+			return errors.New("skipping container as the pre-update command returned exit code 75 (EX_TEMPFAIL)")
+		}
+	}
 
 	if err := client.StopContainer(container, params.Timeout); err != nil {
 		log.Error(err)
+		return err
 	}
+	return nil
 }
 
-func restartContainersInSortedOrder(containers []container.Container, client container.Client, params UpdateParams) {
-	for _, container := range containers {
-		if !container.Stale {
+func restartContainersInSortedOrder(containers []types.Container, client container.Client, params types.UpdateParams, stoppedImages map[types.ImageID]bool) map[types.ContainerID]error {
+	cleanupImageIDs := make(map[types.ImageID]bool, len(containers))
+	failed := make(map[types.ContainerID]error, len(containers))
+
+	for _, c := range containers {
+		if !c.ToRestart() {
 			continue
 		}
-		restartStaleContainer(container, client, params)
+		if stoppedImages[c.SafeImageID()] {
+			if err := restartStaleContainer(c, client, params); err != nil {
+				failed[c.ID()] = err
+			} else if c.IsStale() {
+				// Only add (previously) stale containers' images to cleanup
+				cleanupImageIDs[c.ImageID()] = true
+			}
+		}
+	}
+
+	if params.Cleanup {
+		cleanupImages(client, cleanupImageIDs)
+	}
+
+	return failed
+}
+
+func cleanupImages(client container.Client, imageIDs map[types.ImageID]bool) {
+	for imageID := range imageIDs {
+		if imageID == "" {
+			continue
+		}
+		if err := client.RemoveImageByID(imageID); err != nil {
+			log.Error(err)
+		}
 	}
 }
 
-func restartStaleContainer(container container.Container, client container.Client, params UpdateParams) {
+func restartStaleContainer(container types.Container, client container.Client, params types.UpdateParams) error {
 	// Since we can't shutdown a watchtower container immediately, we need to
 	// start the new one while the old one is still running. This prevents us
 	// from re-using the same container name so we first rename the current
@@ -85,71 +216,52 @@ func restartStaleContainer(container container.Container, client container.Clien
 	if container.IsWatchtower() {
 		if err := client.RenameContainer(container, util.RandName()); err != nil {
 			log.Error(err)
-			return
+			return nil
 		}
 	}
 
 	if !params.NoRestart {
 		if newContainerID, err := client.StartContainer(container); err != nil {
 			log.Error(err)
-		} else if container.Stale && params.LifecycleHooks {
-			executePostUpdateCommand(client, newContainerID)
+			return err
+		} else if container.ToRestart() && !container.IsLinkedToRestarting() && params.LifecycleHooks {
+			lifecycle.ExecutePostUpdateCommand(client, newContainerID)
 		}
 	}
-
-	if params.Cleanup {
-		if err := client.RemoveImage(container); err != nil {
-			log.Error(err)
-		}
-	}
+	return nil
 }
 
-func checkDependencies(containers []container.Container) {
+// UpdateImplicitRestart iterates through the passed containers, setting the
+// `LinkedToRestarting` flag if any of it's linked containers are marked for restart
+func UpdateImplicitRestart(containers []types.Container) {
 
-	for i, parent := range containers {
-		if parent.ToRestart() {
+	for ci, c := range containers {
+		if c.ToRestart() {
+			// The container is already marked for restart, no need to check
 			continue
 		}
 
-	LinkLoop:
-		for _, linkName := range parent.Links() {
-			for _, child := range containers {
-				if child.Name() == linkName && child.ToRestart() {
-					containers[i].Linked = true
-					break LinkLoop
-				}
+		if link := linkedContainerMarkedForRestart(c.Links(), containers); link != "" {
+			log.WithFields(log.Fields{
+				"restarting": link,
+				"linked":     c.Name(),
+			}).Debug("container is linked to restarting")
+			// NOTE: To mutate the array, the `c` variable cannot be used as it's a copy
+			containers[ci].SetLinkedToRestarting(true)
+		}
+
+	}
+}
+
+// linkedContainerMarkedForRestart returns the name of the first link that matches a
+// container marked for restart
+func linkedContainerMarkedForRestart(links []string, containers []types.Container) string {
+	for _, linkName := range links {
+		for _, candidate := range containers {
+			if candidate.Name() == linkName && candidate.ToRestart() {
+				return linkName
 			}
 		}
 	}
-}
-
-func executePreUpdateCommand(client container.Client, container container.Container) {
-
-	command := container.GetLifecyclePreUpdateCommand()
-	if len(command) == 0 {
-		log.Debug("No pre-update command supplied. Skipping")
-	}
-
-	log.Info("Executing pre-update command.")
-	if err := client.ExecuteCommand(container.ID(), command); err != nil {
-		log.Error(err)
-	}
-}
-
-func executePostUpdateCommand(client container.Client, newContainerID string) {
-	newContainer, err := client.GetContainer(newContainerID)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	command := newContainer.GetLifecyclePostUpdateCommand()
-	if len(command) == 0 {
-		log.Debug("No post-update command supplied. Skipping")
-	}
-
-	log.Info("Executing post-update command.")
-	if err := client.ExecuteCommand(newContainerID, command); err != nil {
-		log.Error(err)
-	}
+	return ""
 }

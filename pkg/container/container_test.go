@@ -1,80 +1,167 @@
 package container
 
 import (
-	"github.com/containrrr/watchtower/pkg/container/mocks"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	cli "github.com/docker/docker/client"
+	"github.com/containrrr/watchtower/pkg/types"
+	dc "github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"testing"
 )
 
-func TestContainer(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Container Suite")
-}
-
 var _ = Describe("the container", func() {
-	Describe("the client", func() {
-		var docker *cli.Client
-		var client Client
-		BeforeSuite(func() {
-			server := mocks.NewMockAPIServer()
-			docker, _ = cli.NewClientWithOpts(
-				cli.WithHost(server.URL),
-				cli.WithHTTPClient(server.Client()))
-			client = dockerClient{
-				api:        docker,
-				pullImages: false,
-			}
-		})
-		It("should return a client for the api", func() {
-			Expect(client).NotTo(BeNil())
-		})
-		When("listing containers without any filter", func() {
-			It("should return all available containers", func() {
-				containers, err := client.ListContainers(noFilter)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(containers) == 2).To(BeTrue())
+	Describe("VerifyConfiguration", func() {
+		When("verifying a container with no image info", func() {
+			It("should return an error", func() {
+				c := MockContainer(WithPortBindings())
+				c.imageInfo = nil
+				err := c.VerifyConfiguration()
+				Expect(err).To(Equal(errorNoImageInfo))
 			})
 		})
-		When("listing containers with a filter matching nothing", func() {
-			It("should return an empty array", func() {
-				filter := filterByNames([]string{"lollercoaster"}, noFilter)
-				containers, err := client.ListContainers(filter)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(containers) == 0).To(BeTrue())
+		When("verifying a container with no container info", func() {
+			It("should return an error", func() {
+				c := MockContainer(WithPortBindings())
+				c.containerInfo = nil
+				err := c.VerifyConfiguration()
+				Expect(err).To(Equal(errorNoContainerInfo))
 			})
 		})
-		When("listing containers with a watchtower filter", func() {
-			It("should return only the watchtower container", func() {
-				containers, err := client.ListContainers(WatchtowerContainersFilter)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(containers) == 1).To(BeTrue())
-				Expect(containers[0].ImageName()).To(Equal("containrrr/watchtower:latest"))
+		When("verifying a container with no config", func() {
+			It("should return an error", func() {
+				c := MockContainer(WithPortBindings())
+				c.containerInfo.Config = nil
+				err := c.VerifyConfiguration()
+				Expect(err).To(Equal(errorInvalidConfig))
 			})
 		})
-		When(`listing containers with the "include stopped" option`, func() {
-			It("should return both stopped and running containers", func() {
-				client = dockerClient{
-					api:            docker,
-					pullImages:     false,
-					includeStopped: true,
-				}
-				containers, err := client.ListContainers(noFilter)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(containers) > 0).To(BeTrue())
+		When("verifying a container with no host config", func() {
+			It("should return an error", func() {
+				c := MockContainer(WithPortBindings())
+				c.containerInfo.HostConfig = nil
+				err := c.VerifyConfiguration()
+				Expect(err).To(Equal(errorInvalidConfig))
+			})
+		})
+		When("verifying a container with no port bindings", func() {
+			It("should not return an error", func() {
+				c := MockContainer(WithPortBindings())
+				err := c.VerifyConfiguration()
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+		When("verifying a container with port bindings, but no exposed ports", func() {
+			It("should make the config compatible with updating", func() {
+				c := MockContainer(WithPortBindings("80/tcp"))
+				c.containerInfo.Config.ExposedPorts = nil
+				Expect(c.VerifyConfiguration()).To(Succeed())
+
+				Expect(c.containerInfo.Config.ExposedPorts).ToNot(BeNil())
+				Expect(c.containerInfo.Config.ExposedPorts).To(BeEmpty())
+			})
+		})
+		When("verifying a container with port bindings and exposed ports is non-nil", func() {
+			It("should return an error", func() {
+				c := MockContainer(WithPortBindings("80/tcp"))
+				c.containerInfo.Config.ExposedPorts = map[nat.Port]struct{}{"80/tcp": {}}
+				err := c.VerifyConfiguration()
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+	})
+	Describe("GetCreateConfig", func() {
+		When("container healthcheck config is equal to image config", func() {
+			It("should return empty healthcheck values", func() {
+				c := MockContainer(WithHealthcheck(dc.HealthConfig{
+					Test: []string{"/usr/bin/sleep", "1s"},
+				}), WithImageHealthcheck(dc.HealthConfig{
+					Test: []string{"/usr/bin/sleep", "1s"},
+				}))
+				Expect(c.GetCreateConfig().Healthcheck).To(Equal(&dc.HealthConfig{}))
+
+				c = MockContainer(WithHealthcheck(dc.HealthConfig{
+					Timeout: 30,
+				}), WithImageHealthcheck(dc.HealthConfig{
+					Timeout: 30,
+				}))
+				Expect(c.GetCreateConfig().Healthcheck).To(Equal(&dc.HealthConfig{}))
+
+				c = MockContainer(WithHealthcheck(dc.HealthConfig{
+					StartPeriod: 30,
+				}), WithImageHealthcheck(dc.HealthConfig{
+					StartPeriod: 30,
+				}))
+				Expect(c.GetCreateConfig().Healthcheck).To(Equal(&dc.HealthConfig{}))
+
+				c = MockContainer(WithHealthcheck(dc.HealthConfig{
+					Retries: 30,
+				}), WithImageHealthcheck(dc.HealthConfig{
+					Retries: 30,
+				}))
+				Expect(c.GetCreateConfig().Healthcheck).To(Equal(&dc.HealthConfig{}))
+			})
+		})
+		When("container healthcheck config is different to image config", func() {
+			It("should return the container healthcheck values", func() {
+				c := MockContainer(WithHealthcheck(dc.HealthConfig{
+					Test:        []string{"/usr/bin/sleep", "1s"},
+					Interval:    30,
+					Timeout:     30,
+					StartPeriod: 10,
+					Retries:     2,
+				}), WithImageHealthcheck(dc.HealthConfig{
+					Test:        []string{"/usr/bin/sleep", "10s"},
+					Interval:    10,
+					Timeout:     60,
+					StartPeriod: 30,
+					Retries:     10,
+				}))
+				Expect(c.GetCreateConfig().Healthcheck).To(Equal(&dc.HealthConfig{
+					Test:        []string{"/usr/bin/sleep", "1s"},
+					Interval:    30,
+					Timeout:     30,
+					StartPeriod: 10,
+					Retries:     2,
+				}))
+			})
+		})
+		When("container healthcheck config is empty", func() {
+			It("should not panic", func() {
+				c := MockContainer(WithImageHealthcheck(dc.HealthConfig{
+					Test:        []string{"/usr/bin/sleep", "10s"},
+					Interval:    10,
+					Timeout:     60,
+					StartPeriod: 30,
+					Retries:     10,
+				}))
+				Expect(c.GetCreateConfig().Healthcheck).To(BeNil())
+			})
+		})
+		When("container image healthcheck config is empty", func() {
+			It("should not panic", func() {
+				c := MockContainer(WithHealthcheck(dc.HealthConfig{
+					Test:        []string{"/usr/bin/sleep", "1s"},
+					Interval:    30,
+					Timeout:     30,
+					StartPeriod: 10,
+					Retries:     2,
+				}))
+				Expect(c.GetCreateConfig().Healthcheck).To(Equal(&dc.HealthConfig{
+					Test:        []string{"/usr/bin/sleep", "1s"},
+					Interval:    30,
+					Timeout:     30,
+					StartPeriod: 10,
+					Retries:     2,
+				}))
 			})
 		})
 	})
 	When("asked for metadata", func() {
 		var c *Container
 		BeforeEach(func() {
-			c = mockContainerWithLabels(map[string]string{
+			c = MockContainer(WithLabels(map[string]string{
 				"com.centurylinklabs.watchtower.enable": "true",
-				"com.centurylinklabs.watchtower":        "true",
-			})
+				"io.storj.watchtower":        "true",
+			}))
 		})
 		It("should return its name on calls to .Name()", func() {
 			name := c.Name()
@@ -84,43 +171,35 @@ var _ = Describe("the container", func() {
 		It("should return its ID on calls to .ID()", func() {
 			id := c.ID()
 
-			Expect(id).To(Equal("container_id"))
-			Expect(id).NotTo(Equal("wrong-id"))
+			Expect(id).To(BeEquivalentTo("container_id"))
+			Expect(id).NotTo(BeEquivalentTo("wrong-id"))
 		})
 		It("should return true, true if enabled on calls to .Enabled()", func() {
 			enabled, exists := c.Enabled()
 
 			Expect(enabled).To(BeTrue())
-			Expect(enabled).NotTo(BeFalse())
 			Expect(exists).To(BeTrue())
-			Expect(exists).NotTo(BeFalse())
 		})
 		It("should return false, true if present but not true on calls to .Enabled()", func() {
-			c = mockContainerWithLabels(map[string]string{"com.centurylinklabs.watchtower.enable": "false"})
+			c = MockContainer(WithLabels(map[string]string{"com.centurylinklabs.watchtower.enable": "false"}))
 			enabled, exists := c.Enabled()
 
 			Expect(enabled).To(BeFalse())
-			Expect(enabled).NotTo(BeTrue())
 			Expect(exists).To(BeTrue())
-			Expect(exists).NotTo(BeFalse())
 		})
 		It("should return false, false if not present on calls to .Enabled()", func() {
-			c = mockContainerWithLabels(map[string]string{"lol": "false"})
+			c = MockContainer(WithLabels(map[string]string{"lol": "false"}))
 			enabled, exists := c.Enabled()
 
 			Expect(enabled).To(BeFalse())
-			Expect(enabled).NotTo(BeTrue())
 			Expect(exists).To(BeFalse())
-			Expect(exists).NotTo(BeTrue())
 		})
 		It("should return false, false if present but not parsable .Enabled()", func() {
-			c = mockContainerWithLabels(map[string]string{"com.centurylinklabs.watchtower.enable": "falsy"})
+			c = MockContainer(WithLabels(map[string]string{"com.centurylinklabs.watchtower.enable": "falsy"}))
 			enabled, exists := c.Enabled()
 
 			Expect(enabled).To(BeFalse())
-			Expect(enabled).NotTo(BeTrue())
 			Expect(exists).To(BeFalse())
-			Expect(exists).NotTo(BeTrue())
 		})
 		When("checking if its a watchtower instance", func() {
 			It("should return true if the label is set to true", func() {
@@ -128,31 +207,31 @@ var _ = Describe("the container", func() {
 				Expect(isWatchtower).To(BeTrue())
 			})
 			It("should return false if the label is present but set to false", func() {
-				c = mockContainerWithLabels(map[string]string{"com.centurylinklabs.watchtower": "false"})
+				c = MockContainer(WithLabels(map[string]string{"io.storj.watchtower": "false"}))
 				isWatchtower := c.IsWatchtower()
 				Expect(isWatchtower).To(BeFalse())
 			})
 			It("should return false if the label is not present", func() {
-				c = mockContainerWithLabels(map[string]string{"funny.label": "false"})
+				c = MockContainer(WithLabels(map[string]string{"funny.label": "false"}))
 				isWatchtower := c.IsWatchtower()
 				Expect(isWatchtower).To(BeFalse())
 			})
 			It("should return false if there are no labels", func() {
-				c = mockContainerWithLabels(map[string]string{})
+				c = MockContainer(WithLabels(map[string]string{}))
 				isWatchtower := c.IsWatchtower()
 				Expect(isWatchtower).To(BeFalse())
 			})
 		})
 		When("fetching the custom stop signal", func() {
 			It("should return the signal if its set", func() {
-				c = mockContainerWithLabels(map[string]string{
+				c = MockContainer(WithLabels(map[string]string{
 					"com.centurylinklabs.watchtower.stop-signal": "SIGKILL",
-				})
+				}))
 				stopSignal := c.StopSignal()
 				Expect(stopSignal).To(Equal("SIGKILL"))
 			})
 			It("should return an empty string if its not set", func() {
-				c = mockContainerWithLabels(map[string]string{})
+				c = MockContainer(WithLabels(map[string]string{}))
 				stopSignal := c.StopSignal()
 				Expect(stopSignal).To(Equal(""))
 			})
@@ -160,45 +239,153 @@ var _ = Describe("the container", func() {
 		When("fetching the image name", func() {
 			When("the zodiac label is present", func() {
 				It("should fetch the image name from it", func() {
-					c = mockContainerWithLabels(map[string]string{
+					c = MockContainer(WithLabels(map[string]string{
 						"com.centurylinklabs.zodiac.original-image": "the-original-image",
-					})
+					}))
 					imageName := c.ImageName()
 					Expect(imageName).To(Equal(imageName))
 				})
 			})
 			It("should return the image name", func() {
 				name := "image-name:3"
-				c = mockContainerWithImageName(name)
+				c = MockContainer(WithImageName(name))
 				imageName := c.ImageName()
 				Expect(imageName).To(Equal(name))
 			})
 			It("should assume latest if no tag is supplied", func() {
 				name := "image-name"
-				c = mockContainerWithImageName(name)
+				c = MockContainer(WithImageName(name))
 				imageName := c.ImageName()
 				Expect(imageName).To(Equal(name + ":latest"))
 			})
 		})
+
+		When("fetching container links", func() {
+			When("the depends on label is present", func() {
+				It("should fetch depending containers from it", func() {
+					c = MockContainer(WithLabels(map[string]string{
+						"com.centurylinklabs.watchtower.depends-on": "postgres",
+					}))
+					links := c.Links()
+					Expect(links).To(SatisfyAll(ContainElement("/postgres"), HaveLen(1)))
+				})
+				It("should fetch depending containers if there are many", func() {
+					c = MockContainer(WithLabels(map[string]string{
+						"com.centurylinklabs.watchtower.depends-on": "postgres,redis",
+					}))
+					links := c.Links()
+					Expect(links).To(SatisfyAll(ContainElement("/postgres"), ContainElement("/redis"), HaveLen(2)))
+				})
+				It("should only add slashes to names when they are missing", func() {
+					c = MockContainer(WithLabels(map[string]string{
+						"com.centurylinklabs.watchtower.depends-on": "/postgres,redis",
+					}))
+					links := c.Links()
+					Expect(links).To(SatisfyAll(ContainElement("/postgres"), ContainElement("/redis")))
+				})
+				It("should fetch depending containers if label is blank", func() {
+					c = MockContainer(WithLabels(map[string]string{
+						"com.centurylinklabs.watchtower.depends-on": "",
+					}))
+					links := c.Links()
+					Expect(links).To(HaveLen(0))
+				})
+			})
+			When("the depends on label is not present", func() {
+				It("should fetch depending containers from host config links", func() {
+					c = MockContainer(WithLinks([]string{
+						"redis:test-containrrr",
+						"postgres:test-containrrr",
+					}))
+					links := c.Links()
+					Expect(links).To(SatisfyAll(ContainElement("redis"), ContainElement("postgres"), HaveLen(2)))
+				})
+			})
+		})
+
+		When("checking no-pull label", func() {
+			When("no-pull argument is not set", func() {
+				When("no-pull label is true", func() {
+					c := MockContainer(WithLabels(map[string]string{
+						"com.centurylinklabs.watchtower.no-pull": "true",
+					}))
+					It("should return true", func() {
+						Expect(c.IsNoPull(types.UpdateParams{})).To(Equal(true))
+					})
+				})
+				When("no-pull label is false", func() {
+					c := MockContainer(WithLabels(map[string]string{
+						"com.centurylinklabs.watchtower.no-pull": "false",
+					}))
+					It("should return false", func() {
+						Expect(c.IsNoPull(types.UpdateParams{})).To(Equal(false))
+					})
+				})
+				When("no-pull label is set to an invalid value", func() {
+					c := MockContainer(WithLabels(map[string]string{
+						"com.centurylinklabs.watchtower.no-pull": "maybe",
+					}))
+					It("should return false", func() {
+						Expect(c.IsNoPull(types.UpdateParams{})).To(Equal(false))
+					})
+				})
+				When("no-pull label is unset", func() {
+					c = MockContainer(WithLabels(map[string]string{}))
+					It("should return false", func() {
+						Expect(c.IsNoPull(types.UpdateParams{})).To(Equal(false))
+					})
+				})
+			})
+			When("no-pull argument is set to true", func() {
+				When("no-pull label is true", func() {
+					c := MockContainer(WithLabels(map[string]string{
+						"com.centurylinklabs.watchtower.no-pull": "true",
+					}))
+					It("should return true", func() {
+						Expect(c.IsNoPull(types.UpdateParams{NoPull: true})).To(Equal(true))
+					})
+				})
+				When("no-pull label is false", func() {
+					c := MockContainer(WithLabels(map[string]string{
+						"com.centurylinklabs.watchtower.no-pull": "false",
+					}))
+					It("should return true", func() {
+						Expect(c.IsNoPull(types.UpdateParams{NoPull: true})).To(Equal(true))
+					})
+				})
+				When("label-take-precedence argument is set to true", func() {
+					When("no-pull label is true", func() {
+						c := MockContainer(WithLabels(map[string]string{
+							"com.centurylinklabs.watchtower.no-pull": "true",
+						}))
+						It("should return true", func() {
+							Expect(c.IsNoPull(types.UpdateParams{LabelPrecedence: true, NoPull: true})).To(Equal(true))
+						})
+					})
+					When("no-pull label is false", func() {
+						c := MockContainer(WithLabels(map[string]string{
+							"com.centurylinklabs.watchtower.no-pull": "false",
+						}))
+						It("should return false", func() {
+							Expect(c.IsNoPull(types.UpdateParams{LabelPrecedence: true, NoPull: true})).To(Equal(false))
+						})
+					})
+				})
+			})
+		})
+
+		When("there is a pre or post update timeout", func() {
+			It("should return minute values", func() {
+				c = MockContainer(WithLabels(map[string]string{
+					"com.centurylinklabs.watchtower.lifecycle.pre-update-timeout":  "3",
+					"com.centurylinklabs.watchtower.lifecycle.post-update-timeout": "5",
+				}))
+				preTimeout := c.PreUpdateTimeout()
+				Expect(preTimeout).To(Equal(3))
+				postTimeout := c.PostUpdateTimeout()
+				Expect(postTimeout).To(Equal(5))
+			})
+		})
+
 	})
 })
-
-func mockContainerWithImageName(name string) *Container {
-	container := mockContainerWithLabels(nil)
-	container.containerInfo.Config.Image = name
-	return container
-}
-
-func mockContainerWithLabels(labels map[string]string) *Container {
-	content := types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{
-			ID:    "container_id",
-			Image: "image",
-			Name:  "test-containrrr",
-		},
-		Config: &container.Config{
-			Labels: labels,
-		},
-	}
-	return NewContainer(&content, nil)
-}

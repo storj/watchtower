@@ -1,66 +1,88 @@
 module github.com/containrrr/watchtower
 
-go 1.12
+go 1.24.0
 
 require (
-	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
-	github.com/Microsoft/go-winio v0.4.12
-	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
-	github.com/beorn7/perks v1.0.0
-	github.com/brysgo/gomock_ginkgo v0.0.0-20180512161304-be2c1b0e4111
-	github.com/containerd/containerd v1.2.6 // indirect
-	github.com/containerd/continuity v0.0.0-20181203112020-004b46473808
-	github.com/davecgh/go-spew v1.1.1
-	github.com/docker/cli v0.0.0-20190327152802-57b27434ea29
-	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker v0.0.0-20190404075923-dbe4a30928d4
-	github.com/docker/docker-credential-helpers v0.6.1
-	github.com/docker/go v1.5.1-1
-	github.com/docker/go-connections v0.4.0
-	github.com/docker/go-metrics v0.0.0-20181218153428-b84716841b82
-	github.com/docker/go-units v0.3.3
-	github.com/docker/swarmkit v1.12.0 // indirect
-	github.com/gogo/protobuf v1.2.1
-	github.com/golang/mock v1.1.1
-	github.com/golang/protobuf v1.3.1
-	github.com/gorilla/mux v1.7.0
-	github.com/hashicorp/go-memdb v1.0.0 // indirect
-	github.com/hashicorp/go-version v1.1.0
-	github.com/inconshreveable/mousetrap v1.0.0
-	github.com/johntdyer/slack-go v0.0.0-20180213144715-95fac1160b22
-	github.com/johntdyer/slackrus v0.0.0-20180518184837-f7aae3243a07
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2
-	github.com/mattn/go-shellwords v1.0.5 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.1
-	github.com/miekg/pkcs11 v0.0.0-20190401114359-553cfdd26aaa
-	github.com/morikuni/aec v0.0.0-20170113033406-39771216ff4c
-	github.com/onsi/ginkgo v1.8.0
-	github.com/onsi/gomega v1.5.0
-	github.com/opencontainers/go-digest v1.0.0-rc1
-	github.com/opencontainers/image-spec v1.0.1
-	github.com/opencontainers/runc v0.1.1
-	github.com/opencontainers/runtime-spec v1.0.1 // indirect
-	github.com/opencontainers/selinux v1.2.1 // indirect
-	github.com/pkg/errors v0.8.1
-	github.com/pmezard/go-difflib v1.0.0
-	github.com/prometheus/client_golang v0.9.3
-	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90
-	github.com/prometheus/common v0.4.0
-	github.com/prometheus/procfs v0.0.0-20190507164030-5867b95ac084
-	github.com/robfig/cron v0.0.0-20180505203441-b41be1df6967
-	github.com/sirupsen/logrus v1.4.1
-	github.com/spf13/cobra v0.0.3
-	github.com/spf13/pflag v1.0.3
-	github.com/spf13/viper v1.4.0
-	github.com/stretchr/objx v0.1.1
-	github.com/stretchr/testify v1.3.0
-	github.com/theupdateframework/notary v0.6.1
-	github.com/vbatts/tar-split v0.11.1 // indirect
-	golang.org/x/crypto v0.0.0-20190403202508-8e1b8d32e692
-	golang.org/x/net v0.0.0-20190522155817-f3200d17e092
-	golang.org/x/sys v0.0.0-20190403152447-81d4e9dc473e
-	google.golang.org/appengine v1.4.0 // indirect
-	google.golang.org/genproto v0.0.0-20190401181712-f467c93bbac2
-	google.golang.org/grpc v1.21.0
-	gotest.tools v2.2.0+incompatible // indirect
+	github.com/containrrr/shoutrrr v0.8.0
+	github.com/distribution/reference v0.6.0
+	github.com/docker/cli v29.2.1+incompatible
+	github.com/docker/docker v28.5.2+incompatible
+	github.com/docker/go-connections v0.6.0
+	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/gomega v1.30.0
+	github.com/prometheus/client_golang v1.18.0
+	github.com/robfig/cron v1.2.0
+	github.com/sirupsen/logrus v1.9.3
+	github.com/spf13/cobra v1.8.0
+	github.com/spf13/pflag v1.0.5
+	github.com/spf13/viper v1.18.2
+	github.com/stretchr/testify v1.11.1
+	golang.org/x/net v0.49.0
+)
+
+require (
+	github.com/containerd/errdefs v1.0.0 // indirect
+	github.com/containerd/errdefs/pkg v0.3.0 // indirect
+	github.com/containerd/log v0.1.0 // indirect
+	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
+	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/sys/atomicwriter v0.1.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.65.0 // indirect
+	go.opentelemetry.io/otel v1.40.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.40.0 // indirect
+	go.opentelemetry.io/otel/metric v1.40.0 // indirect
+	go.opentelemetry.io/otel/trace v1.40.0 // indirect
+)
+
+require (
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
+	github.com/Microsoft/go-winio v0.4.21 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/docker/docker-credential-helpers v0.9.5 // indirect
+	github.com/docker/go-units v0.5.0 // indirect
+	github.com/fatih/color v1.15.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/magiconair/properties v1.8.7 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/moby/term v0.5.2 // indirect
+	github.com/morikuni/aec v0.0.0-20170113033406-39771216ff4c // indirect
+	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/opencontainers/image-spec v1.1.1 // indirect
+	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/prometheus/client_model v0.5.0 // indirect
+	github.com/prometheus/common v0.45.0 // indirect
+	github.com/prometheus/procfs v0.12.0 // indirect
+	github.com/sagikazarmark/locafero v0.4.0 // indirect
+	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
+	github.com/sourcegraph/conc v0.3.0 // indirect
+	github.com/spf13/afero v1.11.0 // indirect
+	github.com/spf13/cast v1.6.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/subosito/gotenv v1.6.0 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/multierr v1.9.0 // indirect
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
+	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/text v0.33.0
+	golang.org/x/time v0.5.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gotest.tools/v3 v3.0.3 // indirect
 )

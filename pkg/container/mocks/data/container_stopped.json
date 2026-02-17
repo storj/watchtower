@@ -21,7 +21,7 @@
   "HostnamePath": "/var/lib/docker/containers/ae8964ba86c7cd7522cf84e09781343d88e0e3543281c747d88b27e246578b65/hostname",
   "HostsPath": "/var/lib/docker/containers/ae8964ba86c7cd7522cf84e09781343d88e0e3543281c747d88b27e246578b65/hosts",
   "LogPath": "/var/lib/docker/containers/ae8964ba86c7cd7522cf84e09781343d88e0e3543281c747d88b27e246578b65/ae8964ba86c7cd7522cf84e09781343d88e0e3543281c747d88b27e246578b65-json.log",
-  "Name": "/watchtower-test",
+  "Name": "/watchtower-stopped",
   "RestartCount": 0,
   "Driver": "overlay2",
   "Platform": "linux",
@@ -163,7 +163,7 @@
     ],
     "OnBuild": null,
     "Labels": {
-      "com.centurylinklabs.watchtower": "true"
+      "io.storj.watchtower": "true"
     }
   },
   "NetworkSettings": {
