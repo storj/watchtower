@@ -39,8 +39,8 @@ dockers:
     image_templates:
       - storjlabs/watchtower:amd64-{{ .Version }}
       - storjlabs/watchtower:amd64-latest
-      - ghcr.io/storjlabs/watchtower:amd64-{{ .Version }}
-      - ghcr.io/storjlabs/watchtower:amd64-latest
+      - ghcr.io/storj/watchtower:amd64-{{ .Version }}
+      - ghcr.io/storj/watchtower:amd64-latest
   -
     use: buildx
     build_flag_templates: ["--platform=linux/arm/v6"]
@@ -51,8 +51,8 @@ dockers:
     image_templates:
       - storjlabs/watchtower:armhf-{{ .Version }}
       - storjlabs/watchtower:armhf-latest
-      - ghcr.io/storjlabs/watchtower:armhf-{{ .Version }}
-      - ghcr.io/storjlabs/watchtower:armhf-latest
+      - ghcr.io/storj/watchtower:armhf-{{ .Version }}
+      - ghcr.io/storj/watchtower:armhf-latest
   -
     use: buildx
     build_flag_templates: ["--platform=linux/arm64/v8"]
@@ -63,8 +63,8 @@ dockers:
     image_templates:
       - storjlabs/watchtower:arm64v8-{{ .Version }}
       - storjlabs/watchtower:arm64v8-latest
-      - ghcr.io/storjlabs/watchtower:arm64v8-{{ .Version }}
-      - ghcr.io/storjlabs/watchtower:arm64v8-latest
+      - ghcr.io/storj/watchtower:arm64v8-{{ .Version }}
+      - ghcr.io/storj/watchtower:arm64v8-latest
 
 docker_manifests:
   - name_template: storjlabs/watchtower:{{ .Version }}
@@ -77,13 +77,13 @@ docker_manifests:
       - storjlabs/watchtower:amd64-latest
       - storjlabs/watchtower:armhf-latest
       - storjlabs/watchtower:arm64v8-latest
-  - name_template: ghcr.io/storjlabs/watchtower:{{ .Version }}
+  - name_template: ghcr.io/storj/watchtower:{{ .Version }}
     image_templates:
-      - ghcr.io/storjlabs/watchtower:amd64-{{ .Version }}
-      - ghcr.io/storjlabs/watchtower:armhf-{{ .Version }}
-      - ghcr.io/storjlabs/watchtower:arm64v8-{{ .Version }}
-  - name_template: ghcr.io/storjlabs/watchtower:latest
+      - ghcr.io/storj/watchtower:amd64-{{ .Version }}
+      - ghcr.io/storj/watchtower:armhf-{{ .Version }}
+      - ghcr.io/storj/watchtower:arm64v8-{{ .Version }}
+  - name_template: ghcr.io/storj/watchtower:latest
     image_templates:
-      - ghcr.io/storjlabs/watchtower:amd64-latest
-      - ghcr.io/storjlabs/watchtower:armhf-latest
-      - ghcr.io/storjlabs/watchtower:arm64v8-latest
+      - ghcr.io/storj/watchtower:amd64-latest
+      - ghcr.io/storj/watchtower:armhf-latest
+      - ghcr.io/storj/watchtower:arm64v8-latest
