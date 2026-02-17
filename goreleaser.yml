@@ -1,36 +1,37 @@
-build:
-  main: ./main.go
-  binary: watchtower
-  goos:
-    - linux
-    - windows
-  goarch:
-    - amd64
-    - 386
-    - arm
-    - arm64
-  ldflags:
-    - -s -w -X github.com/storj/watchtower/internal/meta.Version={{.Version}}
+version: 2
+
+builds:
+  - main: ./main.go
+    binary: watchtower
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w -X github.com/storj/watchtower/internal/meta.Version={{.Version}}
+
 archives:
-  - 
-    name_template: "{{.ProjectName}}_{{.Os}}_{{.Arch}}"
-    format: tar.gz
-    replacements:
-      arm: armhf
-      arm64: arm64v8
-      amd64: amd64
-      386: 386
-      darwin: macOS
-      linux: linux
+  - name_template: "{{.ProjectName}}_{{.Os}}_{{.Arch}}"
+    formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     files:
       - LICENSE.md
+
 dockers:
-  -
-    use_buildx: true
-    build_flag_templates: [ "--platform=linux/amd64" ]
+  - use: buildx
+    build_flag_templates: ["--platform=linux/amd64"]
     goos: linux
     goarch: amd64
     goarm: ''
@@ -40,25 +41,21 @@ dockers:
       - storjlabs/watchtower:amd64-latest
       - ghcr.io/storjlabs/watchtower:amd64-{{ .Version }}
       - ghcr.io/storjlabs/watchtower:amd64-latest
-    binaries:
-      - watchtower  
-  - 
-    use_buildx: true
-    build_flag_templates: [ "--platform=linux/arm/v6" ]
+  -
+    use: buildx
+    build_flag_templates: ["--platform=linux/arm/v6"]
     goos: linux
     goarch: arm
-    goarm: 6
+    goarm: '6'
     dockerfile: dockerfiles/Dockerfile
     image_templates:
       - storjlabs/watchtower:armhf-{{ .Version }}
       - storjlabs/watchtower:armhf-latest
       - ghcr.io/storjlabs/watchtower:armhf-{{ .Version }}
       - ghcr.io/storjlabs/watchtower:armhf-latest
-    binaries:
-      - watchtower
-  - 
-    use_buildx: true
-    build_flag_templates: [ "--platform=linux/arm64/v8" ]
+  -
+    use: buildx
+    build_flag_templates: ["--platform=linux/arm64/v8"]
     goos: linux
     goarch: arm64
     goarm: ''
@@ -68,5 +65,3 @@ dockers:
       - storjlabs/watchtower:arm64v8-latest
       - ghcr.io/storjlabs/watchtower:arm64v8-{{ .Version }}
       - ghcr.io/storjlabs/watchtower:arm64v8-latest
-    binaries:
-      - watchtower
