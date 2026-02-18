@@ -12,7 +12,7 @@ import (
 
 	t "github.com/containrrr/watchtower/pkg/types"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	O "github.com/onsi/gomega"
@@ -166,7 +166,7 @@ func getContainerHandler(containerId string, responseHandler http.HandlerFunc) h
 }
 
 // GetContainerHandler mocks the GET containers/{id}/json endpoint
-func GetContainerHandler(containerID string, containerInfo *types.ContainerJSON) http.HandlerFunc {
+func GetContainerHandler(containerID string, containerInfo *container.InspectResponse) http.HandlerFunc {
 	responseHandler := containerNotFoundResponse(containerID)
 	if containerInfo != nil {
 		responseHandler = ghttp.RespondWithJSONEncoded(http.StatusOK, containerInfo)
@@ -175,7 +175,7 @@ func GetContainerHandler(containerID string, containerInfo *types.ContainerJSON)
 }
 
 // GetImageHandler mocks the GET images/{id}/json endpoint
-func GetImageHandler(imageInfo *types.ImageInspect) http.HandlerFunc {
+func GetImageHandler(imageInfo *image.InspectResponse) http.HandlerFunc {
 	return getImageHandler(t.ImageID(imageInfo.ID), ghttp.RespondWithJSONEncoded(http.StatusOK, imageInfo))
 }
 
@@ -196,8 +196,8 @@ func ListContainersHandler(statuses ...string) http.HandlerFunc {
 func respondWithFilteredContainers(filters filters.Args) http.HandlerFunc {
 	containersJSON, err := getMockJSONFile("./mocks/data/containers.json")
 	O.ExpectWithOffset(2, err).ShouldNot(O.HaveOccurred())
-	var filteredContainers []types.Container
-	var containers []types.Container
+	var filteredContainers []container.Summary
+	var containers []container.Summary
 	O.ExpectWithOffset(2, json.Unmarshal(containersJSON, &containers)).To(O.Succeed())
 	for _, v := range containers {
 		for _, key := range filters.Get("status") {

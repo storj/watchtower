@@ -9,11 +9,10 @@ import (
 	"github.com/containrrr/watchtower/pkg/filters"
 	t "github.com/containrrr/watchtower/pkg/types"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	dockercontainer "github.com/docker/docker/api/types/container"
+	"github.com/containerd/errdefs"
 	cli "github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/sirupsen/logrus"
@@ -79,8 +78,8 @@ var _ = Describe("the client", func() {
 	When("removing a running container", func() {
 		When("the container still exist after stopping", func() {
 			It("should attempt to remove the container", func() {
-				container := MockContainer(WithContainerState(types.ContainerState{Running: true}))
-				containerStopped := MockContainer(WithContainerState(types.ContainerState{Running: false}))
+				container := MockContainer(WithContainerState(dockercontainer.State{Running: true}))
+				containerStopped := MockContainer(WithContainerState(dockercontainer.State{Running: false}))
 
 				cid := container.ContainerInfo().ID
 				mockServer.AppendHandlers(
@@ -95,7 +94,7 @@ var _ = Describe("the client", func() {
 		})
 		When("the container does not exist after stopping", func() {
 			It("should not cause an error", func() {
-				container := MockContainer(WithContainerState(types.ContainerState{Running: true}))
+				container := MockContainer(WithContainerState(dockercontainer.State{Running: true}))
 
 				cid := container.ContainerInfo().ID
 				mockServer.AppendHandlers(
@@ -280,7 +279,7 @@ var _ = Describe("the client", func() {
 								cmd,
 							},
 						}),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, types.IDResponse{ID: execID}),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, dockercontainer.ExecCreateResponse{ID: execID}),
 					),
 					// API.ContainerExecStart
 					ghttp.CombineHandlers(
@@ -328,7 +327,7 @@ var _ = Describe("the client", func() {
 				endpoints := map[string]*network.EndpointSettings{
 					`test`: {Aliases: aliases},
 				}
-				container.containerInfo.NetworkSettings = &types.NetworkSettings{Networks: endpoints}
+				container.containerInfo.NetworkSettings = &dockercontainer.NetworkSettings{Networks: endpoints}
 				Expect(container.ContainerInfo().NetworkSettings.Networks[`test`].Aliases).To(Equal(aliases))
 				Expect(client.GetNetworkConfig(container).EndpointsConfig[`test`].Aliases).To(Equal([]string{"One", "Two", "Four"}))
 			})
