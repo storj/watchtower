@@ -581,6 +581,23 @@ func isFile(s string) bool {
 	return !errors.Is(err, os.ErrNotExist)
 }
 
+// IsIntervalOrScheduleExplicitlySet returns true if the user explicitly set
+// the interval or schedule via CLI flags or environment variables.
+// This must be called before ProcessFlagAliases, which calls flags.Set and
+// taints the Changed state.
+func IsIntervalOrScheduleExplicitlySet(flags *pflag.FlagSet) bool {
+	if flags.Changed(`schedule`) || flags.Changed(`interval`) {
+		return true
+	}
+	if val, _ := flags.GetString(`schedule`); val != `` {
+		return true
+	}
+	if val, _ := flags.GetInt(`interval`); val != defaultInterval {
+		return true
+	}
+	return false
+}
+
 // ProcessFlagAliases updates the value of flags that are being set by helper flags
 func ProcessFlagAliases(flags *pflag.FlagSet) {
 

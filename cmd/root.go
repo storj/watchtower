@@ -84,6 +84,11 @@ func Execute() {
 // PreRun is a lifecycle hook that runs before the command is executed.
 func PreRun(cmd *cobra.Command, _ []string) {
 	f := cmd.PersistentFlags()
+
+	// Check whether the user explicitly set interval/schedule before
+	// ProcessFlagAliases, which calls flags.Set and taints the Changed state.
+	userSetSchedule := flags.IsIntervalOrScheduleExplicitlySet(f)
+
 	flags.ProcessFlagAliases(f)
 	if err := flags.SetupLogging(f); err != nil {
 		log.Fatalf("Failed to initialize logging: %s", err.Error())
@@ -91,7 +96,7 @@ func PreRun(cmd *cobra.Command, _ []string) {
 
 	// Use user-provided interval/schedule if explicitly set, otherwise
 	// schedule a random poll interval between [PollInterval, 2*PollInterval)
-	if f.Changed("interval") || f.Changed("schedule") {
+	if userSetSchedule {
 		scheduleSpec, _ = f.GetString("schedule")
 	} else {
 		interval := PollInterval + rand.Intn(PollInterval)
