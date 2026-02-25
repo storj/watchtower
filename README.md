@@ -33,6 +33,25 @@ $ docker run --detach \
 
 Watchtower is intended to be used in homelabs, media centers, local dev environments, and similar. We do **not** recommend using Watchtower in a commercial or production environment. If that is you, you should be looking into using Kubernetes. If that feels like too big a step for you, please look into solutions like [MicroK8s](https://microk8s.io/) and [k3s](https://k3s.io/) that take away a lot of the toil of running a Kubernetes cluster. 
 
+## Troubleshooting
+
+### "Client version is too old" error
+
+If Watchtower crashes with a "client version is too old" error, your Docker Engine likely doesn't support the API version that Watchtower defaults to (1.44). This is common on systems running older Docker versions, such as Synology NAS devices.
+
+Set the `DOCKER_API_VERSION` environment variable to match your Docker Engine's supported API version:
+
+```
+$ docker run -d --restart=always \
+    --name watchtower \
+    -e DOCKER_API_VERSION=1.43 \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    storjlabs/watchtower \
+    --stop-timeout 300s
+```
+
+You can check your Docker Engine's API version with `docker version`.
+
 ## Documentation
 The full documentation is available at https://containrrr.dev/watchtower.
 
